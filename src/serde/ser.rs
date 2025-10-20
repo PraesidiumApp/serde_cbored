@@ -215,7 +215,7 @@ impl<W: Write> Serializer for &mut Encoder<W> {
     }
 
     fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        Ok(self.writer.write_all(&[0xF6])?)
     }
 
     fn serialize_some<T>(self, value: &T) -> Result<Self::Ok, Self::Error>
