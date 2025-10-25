@@ -131,11 +131,11 @@ impl<W: Write> Serializer for &mut Encoder<W> {
         }
     }
 
-    fn serialize_f32(self, v: f32) -> Result<Self::Ok, Self::Error> {
+    fn serialize_f32(self, _v: f32) -> Result<Self::Ok, Self::Error> {
         todo!()
     }
 
-    fn serialize_f64(self, v: f64) -> Result<Self::Ok, Self::Error> {
+    fn serialize_f64(self, _v: f64) -> Result<Self::Ok, Self::Error> {
         todo!()
     }
 
