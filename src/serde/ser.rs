@@ -235,11 +235,11 @@ impl<W: Write> Serializer for &mut Encoder<W> {
 
     fn serialize_unit_variant(
         self,
-        name: &'static str,
+        _name: &'static str,
         variant_index: u32,
-        variant: &'static str,
+        _variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        variant_index.serialize(self)
     }
 
     fn serialize_newtype_struct<T>(
