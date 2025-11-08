@@ -19,7 +19,7 @@ pub enum EncodeError {
     #[error("Cannot encode byte strings longer than 2^64 bytes")]
     ByteStringTooLong,
     #[error("Cannot encode text strings longer than 2^64 bytes")]
-    TextStringTooLong
+    TextStringTooLong,
 }
 
 #[derive(Error, Debug)]
