@@ -178,13 +178,15 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     }
 
     fn serialize_u16(self, v: u16) -> Result<Self::Ok, Self::Error> {
-        if v < 24 {
-            Ok(self.writer.write_all(&[(0b000_00000 | (v as u8))])?)
+        if v <= u8::MAX as u16 {
+            // Can this u16 fit in a u8?, if it can, forward to serialize_u8
+            self.serialize_u8(v as u8)
         } else {
-            let encoded_value_bigend: [u8; 2] = v.to_be_bytes();
-            Ok(self
-                .writer
-                .write_all(&[0x19, encoded_value_bigend[0], encoded_value_bigend[1]])?)
+            // Here 0x19 represents an unsigned integer, stored in the next two bytes
+            self.writer.write_all(&[0x19])?;
+            self.writer.write_all(&v.to_be_bytes())?;
+
+            Ok(())
         }
     }
 
