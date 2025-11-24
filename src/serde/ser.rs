@@ -217,11 +217,11 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     }
 
     fn serialize_f32(self, _v: f32) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        todo!("Will be implemented in future versions")
     }
 
     fn serialize_f64(self, _v: f64) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        todo!("Will be implemented in future versions")
     }
 
     fn serialize_char(self, v: char) -> Result<Self::Ok, Self::Error> {
