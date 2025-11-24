@@ -1,6 +1,6 @@
 //! The CBOR encoder
 
-use crate::{error::EncodeError, serde::common::{NEGATIVE_INTEGER, UNSIGNED_INTEGER}};
+use crate::{error::EncodeError, serde::common::{NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER}};
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
     SerializeTupleStruct, SerializeTupleVariant, Serializer,
@@ -217,19 +217,24 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     }
 
     fn serialize_f32(self, _v: f32) -> Result<Self::Ok, Self::Error> {
+        // TODO
         todo!("Will be implemented in future versions")
     }
 
     fn serialize_f64(self, _v: f64) -> Result<Self::Ok, Self::Error> {
+        // TODO
         todo!("Will be implemented in future versions")
     }
 
     fn serialize_char(self, v: char) -> Result<Self::Ok, Self::Error> {
-        let byte: u8 = 0b011_00000 | (v.len_utf8() as u8);
+        let data_item_header: u8 = TEXT_STRING | (v.len_utf8() as u8);
+
         let mut buf: [u8; 4] = [0; 4];
         let utf8_bytes = v.encode_utf8(&mut buf).as_bytes();
-        self.writer.write_all(&[byte])?;
+
+        self.writer.write_all(&[data_item_header])?;
         self.writer.write_all(utf8_bytes)?;
+
         Ok(())
     }
 
