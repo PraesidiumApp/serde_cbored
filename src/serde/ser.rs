@@ -204,21 +204,15 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     }
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {
-        if v < 24 {
-            Ok(self.writer.write_all(&[(0b000_00000 | (v as u8))])?)
+        if v <= u32::MAX as u64 {
+            // Can this u64 fit in a u32?, if it can, forward to serialize_u32
+            self.serialize_u32(v as u32)
         } else {
-            let encoded_value_bigend: [u8; 8] = v.to_be_bytes();
-            Ok(self.writer.write_all(&[
-                0x1B,
-                encoded_value_bigend[0],
-                encoded_value_bigend[1],
-                encoded_value_bigend[2],
-                encoded_value_bigend[3],
-                encoded_value_bigend[4],
-                encoded_value_bigend[5],
-                encoded_value_bigend[6],
-                encoded_value_bigend[7],
-            ])?)
+            // Here 0x1B represents an unsigned integer, stored in the next eight bytes
+            self.writer.write_all(&[0x1B])?;
+            self.writer.write_all(&v.to_be_bytes())?;
+
+            Ok(())
         }
     }
 
