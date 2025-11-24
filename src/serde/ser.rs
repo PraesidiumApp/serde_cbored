@@ -149,28 +149,20 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
 
     fn serialize_i64(self, v: i64) -> Result<Self::Ok, Self::Error> {
         if v < 0 {
-            // Signed (-9_223_372_036_854_775_808..=-1)
-            let encoded_value: u64 = (-1 - v) as u64;
-            if encoded_value < 24 {
-                Ok(self
-                    .writer
-                    .write_all(&[(0b001_00000 | (encoded_value as u8))])?)
+            // Signed branch
+            if v >= i32::MIN as i64 {
+                // Can this i64 fit in a i32?, if it can, forward to serialize_i32
+                self.serialize_i32(v as i32)
             } else {
-                let encoded_value_bigend: [u8; 8] = encoded_value.to_be_bytes();
-                Ok(self.writer.write_all(&[
-                    0x3B,
-                    encoded_value_bigend[0],
-                    encoded_value_bigend[1],
-                    encoded_value_bigend[2],
-                    encoded_value_bigend[3],
-                    encoded_value_bigend[4],
-                    encoded_value_bigend[5],
-                    encoded_value_bigend[6],
-                    encoded_value_bigend[7],
-                ])?)
+                let encoded_value: u64 = (-1 - v) as u64;
+                // Here 0x3B represents a negative integer, stored in the next eight bytes
+                self.writer.write_all(&[0x3B])?;
+                self.writer.write_all(&encoded_value.to_be_bytes())?;
+
+                Ok(())
             }
         } else {
-            // Unsigned (0..=9_223_372_036_854_775_807)
+            // Unsigned branch, forward to serialize_u64
             self.serialize_u64(v as u64)
         }
     }
