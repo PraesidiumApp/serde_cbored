@@ -375,15 +375,17 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
-        variant_index: u32,
-        _variant: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        variant_index.serialize(&mut *self)?;
-        value.serialize(&mut *self)?;
+        let mut tuple_encoder = self.serialize_tuple(2)?;
+        tuple_encoder.serialize_element(variant)?;
+        tuple_encoder.serialize_element(value)?;
+        tuple_encoder.end()?;
         Ok(())
     }
 
