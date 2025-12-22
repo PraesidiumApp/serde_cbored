@@ -1,6 +1,6 @@
 //! The CBOR encoder
 
-use crate::{error::EncodeError, serde::common::{BYTE_STRING, NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER}};
+use crate::{error::EncodeError, {BYTE_STRING, NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER}};
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
     SerializeTupleStruct, SerializeTupleVariant, Serializer,
@@ -355,10 +355,10 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     fn serialize_unit_variant(
         self,
         _name: &'static str,
-        variant_index: u32,
-        _variant: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
     ) -> Result<Self::Ok, Self::Error> {
-        variant_index.serialize(self)
+        variant.serialize(self)
     }
 
     fn serialize_newtype_struct<T>(
@@ -375,15 +375,17 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     fn serialize_newtype_variant<T>(
         self,
         _name: &'static str,
-        variant_index: u32,
-        _variant: &'static str,
+        _variant_index: u32,
+        variant: &'static str,
         value: &T,
     ) -> Result<Self::Ok, Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        variant_index.serialize(&mut *self)?;
-        value.serialize(&mut *self)?;
+        let mut tuple_encoder = self.serialize_tuple(2)?;
+        tuple_encoder.serialize_element(variant)?;
+        tuple_encoder.serialize_element(value)?;
+        tuple_encoder.end()?;
         Ok(())
     }
 
