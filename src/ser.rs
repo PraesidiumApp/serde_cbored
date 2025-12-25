@@ -334,6 +334,7 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     }
 
     fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
+        // Here 0xF6 represent the CBOR simple value null
         Ok(self.writer.write_all(&[0xF6])?)
     }
 
@@ -345,10 +346,12 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     }
 
     fn serialize_unit(self) -> Result<Self::Ok, Self::Error> {
+        // Here 0xF6 represent the CBOR simple value null
         Ok(self.writer.write_all(&[0xF6])?)
     }
 
     fn serialize_unit_struct(self, _name: &'static str) -> Result<Self::Ok, Self::Error> {
+        // Here 0xF6 represent the CBOR simple value null
         Ok(self.writer.write_all(&[0xF6])?)
     }
 
