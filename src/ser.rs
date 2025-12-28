@@ -347,9 +347,9 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
         T: ?Sized + Serialize,
     {
         let mut tuple_encoder = self.serialize_tuple(2)?;
-        tuple_encoder.serialize_element(variant)?;
-        tuple_encoder.serialize_element(value)?;
-        tuple_encoder.end()?;
+        SerializeTuple::serialize_element(&mut tuple_encoder, variant)?;
+        SerializeTuple::serialize_element(&mut tuple_encoder, value)?;
+        SerializeTuple::end(tuple_encoder)?;
         Ok(())
     }
 
