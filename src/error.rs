@@ -1,5 +1,5 @@
 //! Provides types representing possible errors when encoding/decoding  
-//! 
+//!
 //! For simplicity and clarity the specific error cases both for encoding and decoding are directly  
 //! declared in its respective enums ([EncodeError] and [DecodeError]) so the [EncodeError::Serialization]  
 //! and [DecodeError::Deserialization] variants, while needed by [serde::ser::Error] and [serde::de::Error]  

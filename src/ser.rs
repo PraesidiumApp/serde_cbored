@@ -1,6 +1,9 @@
 //! The CBOR encoder
 
-use crate::{error::EncodeError, {BYTE_STRING, NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER}};
+use crate::{
+    error::EncodeError,
+    {BYTE_STRING, NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER},
+};
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
     SerializeTupleStruct, SerializeTupleVariant, Serializer,
@@ -25,6 +28,11 @@ enum ComplexKind {
     Map,
 }
 
+enum StringKind {
+    Text,
+    Bytes,
+}
+
 impl<W: Write> Encoder<W> {
     /// Construct a new encoder, which will write its output into `W`
     pub fn new(destination: W) -> Self {
@@ -43,6 +51,87 @@ impl<W: Write> Encoder<W> {
     /// will be ignored, therefore, its highly recommendable to call this method
     pub fn flush(&mut self) -> Result<(), EncodeError> {
         Ok(self.writer.flush()?)
+    }
+
+    // When encoding a text or byte string the length must be encoded as the smallest
+    // form possible, this function avoids repeating this block twice in both
+    // serialize_str() and serialize_bytes()
+    fn write_strings(
+        &mut self,
+        length: usize,
+        string_kind: StringKind,
+        data: &[u8],
+    ) -> Result<(), EncodeError> {
+        if length < 24 {
+            match string_kind {
+                StringKind::Text => self.writer.write_all(&[TEXT_STRING | (length as u8)])?,
+                StringKind::Bytes => self.writer.write_all(&[BYTE_STRING | (length as u8)])?,
+            }
+            self.writer.write_all(data)?;
+            Ok(())
+        } else if length <= u8::MAX as usize {
+            match string_kind {
+                // 0x78 = text string, length in the next byte
+                StringKind::Text => self.writer.write_all(&[0x78, (length as u8)])?,
+                // 0x58 = byte string, length in the next byte
+                StringKind::Bytes => self.writer.write_all(&[0x58, (length as u8)])?,
+            }
+            self.writer.write_all(data)?;
+            Ok(())
+        } else if length <= u16::MAX as usize {
+            match string_kind {
+                // 0x79 = text string, length in the next two bytes
+                StringKind::Text => {
+                    self.writer.write_all(&[0x79]);
+                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                }
+                // 0x59 = byte string, length in the next two bytes
+                StringKind::Bytes => {
+                    self.writer.write_all(&[0x59]);
+                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                }
+            }
+            self.writer.write_all(data)?;
+            Ok(())
+        } else if length <= u32::MAX as usize {
+            match string_kind {
+                // 0x7A = text string, length in the next four bytes
+                StringKind::Text => {
+                    self.writer.write_all(&[0x7A]);
+                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                }
+                // 0x5A = byte string, length in the next four bytes
+                StringKind::Bytes => {
+                    self.writer.write_all(&[0x5A]);
+                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                }
+            }
+            self.writer.write_all(data)?;
+            Ok(())
+        } else if length <= u64::MAX as usize {
+            match string_kind {
+                // 0x7B = text string, length in the next eight bytes
+                StringKind::Text => {
+                    self.writer.write_all(&[0x7B]);
+                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                }
+                // 0x5B = byte string, length in the next four bytes
+                StringKind::Bytes => {
+                    self.writer.write_all(&[0x5B]);
+                    self.writer.write_all(&(length as u16).to_be_bytes())?;
+                }
+            }
+            self.writer.write_all(data)?;
+            Ok(())
+        } else {
+            // The CBOR RFC which this codec is based on does not support text or byte
+            // strings longer than 2^64 bytes long, this block is here just for
+            // compliance with the RFC
+            match string_kind {
+                StringKind::Text => Err(EncodeError::TextStringTooLong),
+                StringKind::Bytes => Err(EncodeError::ByteStringTooLong),
+            }
+        }
     }
 }
 
@@ -198,88 +287,11 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     }
 
     fn serialize_str(self, v: &str) -> Result<Self::Ok, Self::Error> {
-        let string_len = v.len();
-
-        if string_len < 24 {
-            self.writer.write_all(&[TEXT_STRING | (string_len as u8)])?;
-            self.writer.write_all(v.as_bytes())?;
-
-            Ok(())
-        } else if string_len <= u8::MAX as usize {
-            // 0x78 = text string, length in the next byte
-            self.writer.write_all(&[0x78, (string_len as u8)])?;
-            self.writer.write_all(v.as_bytes())?;
-
-            Ok(())
-        } else if string_len <= u16::MAX as usize {
-            // 0x79 = text string, length in the next two bytes
-            self.writer.write_all(&[0x79])?;
-            self.writer.write_all(&(string_len as u16).to_be_bytes())?;
-            self.writer.write_all(v.as_bytes())?;
-
-            Ok(())
-
-        } else if string_len <= u32::MAX as usize {
-            // 0x7A = text string, length in the next four bytes
-            self.writer.write_all(&[0x7A])?;
-            self.writer.write_all(&(string_len as u32).to_be_bytes())?;
-            self.writer.write_all(v.as_bytes())?;
-
-            Ok(())
-        } else if string_len <= u64::MAX as usize {
-            // 0x7B = text string, length in the next eight bytes
-            self.writer.write_all(&[0x7B])?;
-            self.writer.write_all(&(string_len as u64).to_be_bytes())?;
-            self.writer.write_all(v.as_bytes())?;
-
-            Ok(())
-        } else {
-            // The CBOR RFC which this codec is based on does not support text strings longer than
-            // 2^64 bytes long, this block is here just for compliance with the RFC
-            Err(EncodeError::TextStringTooLong)
-        }
+        self.write_strings(v.len(), StringKind::Text, v.as_bytes())
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<Self::Ok, Self::Error> {
-        let bytestring_len = v.len();
-
-        if bytestring_len < 24 {
-            self.writer.write_all(&[BYTE_STRING | (bytestring_len as u8)])?;
-            self.writer.write_all(v)?;
-
-            Ok(())
-        } else if bytestring_len <= u8::MAX as usize {
-            // 0x58 = byte string, length in the next byte
-            self.writer.write_all(&[0x58, (bytestring_len as u8)])?;
-            self.writer.write_all(v)?;
-
-            Ok(())
-        } else if bytestring_len <= u16::MAX as usize {
-            // 0x59 = byte string, length in the next two bytes
-            self.writer.write_all(&[0x59])?;
-            self.writer.write_all(&(bytestring_len as u16).to_be_bytes())?;
-            self.writer.write_all(v)?;
-
-            Ok(())
-        } else if bytestring_len <= u32::MAX as usize {
-            // 0x5A = byte string, length in the next four bytes
-            self.writer.write_all(&[0x5A])?;
-            self.writer.write_all(&(bytestring_len as u32).to_be_bytes())?;
-            self.writer.write_all(v)?;
-
-            Ok(())
-        } else if bytestring_len <= u64::MAX as usize {
-            // 0x5B = byte string, length in the next eight bytes
-            self.writer.write_all(&[0x5B])?;
-            self.writer.write_all(&(bytestring_len as u64).to_be_bytes())?;
-            self.writer.write_all(v)?;
-
-            Ok(())
-        } else {
-            // The CBOR RFC which this codec is based on does not support byte strings longer than
-            // 2^64 bytes long, this block is here just for compliance with the RFC
-            Err(EncodeError::ByteStringTooLong)
-        }
+        self.write_strings(v.len(), StringKind::Bytes, v)
     }
 
     fn serialize_none(self) -> Result<Self::Ok, Self::Error> {
@@ -386,6 +398,125 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeStructVariant, Self::Error> {
+        todo!()
+    }
+}
+
+impl<'a, W: Write> SerializeSeq for ComplexEncoder<'a, W> {
+    type Ok = ();
+    type Error = EncodeError;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        todo!()
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        todo!()
+    }
+}
+
+impl<'a, W: Write> SerializeTuple for ComplexEncoder<'a, W> {
+    type Ok = ();
+    type Error = EncodeError;
+
+    fn serialize_element<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        todo!()
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        todo!()
+    }
+}
+
+impl<'a, W: Write> SerializeTupleStruct for ComplexEncoder<'a, W> {
+    type Ok = ();
+    type Error = EncodeError;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        todo!()
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        todo!()
+    }
+}
+
+impl<'a, W: Write> SerializeTupleVariant for ComplexEncoder<'a, W> {
+    type Ok = ();
+    type Error = EncodeError;
+
+    fn serialize_field<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        todo!()
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        todo!()
+    }
+}
+
+impl<'a, W: Write> SerializeMap for ComplexEncoder<'a, W> {
+    type Ok = ();
+    type Error = EncodeError;
+
+    fn serialize_key<T>(&mut self, key: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        todo!()
+    }
+
+    fn serialize_value<T>(&mut self, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        todo!()
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        todo!()
+    }
+}
+
+impl<'a, W: Write> SerializeStruct for ComplexEncoder<'a, W> {
+    type Ok = ();
+    type Error = EncodeError;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        todo!()
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
+        todo!()
+    }
+}
+
+impl<'a, W: Write> SerializeStructVariant for ComplexEncoder<'a, W> {
+    type Ok = ();
+    type Error = EncodeError;
+
+    fn serialize_field<T>(&mut self, key: &'static str, value: &T) -> Result<(), Self::Error>
+    where
+        T: ?Sized + Serialize,
+    {
+        todo!()
+    }
+
+    fn end(self) -> Result<Self::Ok, Self::Error> {
         todo!()
     }
 }
