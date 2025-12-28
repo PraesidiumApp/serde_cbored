@@ -1,8 +1,7 @@
 //! The CBOR encoder
 
 use crate::{
-    ARRAY_OF_ITEMS, BYTE_STRING, NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER,
-    error::EncodeError,
+    ARRAY_OF_ITEMS, BYTE_STRING, MAP_OF_ITEMS, NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER, error::EncodeError
 };
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
@@ -406,7 +405,46 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
-        todo!()
+        match len {
+            Some(length) => {
+                // 0xB8 = map of pairs of data items, length in the next byte
+                // 0xB9 = map of pairs of data items, length in the next two bytes
+                // 0xBA = map of pairs of data items, length in the next four bytes
+                // 0xBB = map of pairs of data items, length in the next eight bytes
+                match Encoder::<W>::calculate_argument_placement(length)? {
+                    ArgumentPlacement::AdditionalInformation => {
+                        self.writer.write_all(&[MAP_OF_ITEMS | (length as u8)])?
+                    }
+                    ArgumentPlacement::NextByte => {
+                        self.writer.write_all(&[0xB8, (length as u8)])?
+                    }
+                    ArgumentPlacement::NextTwoBytes => {
+                        self.writer.write_all(&[0xB9])?;
+                        self.writer.write_all(&(length as u16).to_be_bytes())?;
+                    }
+                    ArgumentPlacement::NextFourBytes => {
+                        self.writer.write_all(&[0xBA])?;
+                        self.writer.write_all(&(length as u32).to_be_bytes())?;
+                    }
+                    ArgumentPlacement::NextEightBytes => {
+                        self.writer.write_all(&[0xBB])?;
+                        self.writer.write_all(&(length as u64).to_be_bytes())?;
+                    }
+                }
+                Ok(ComplexEncoder {
+                    encoder: self,
+                    indefinite_length: false,
+                })
+            },
+            None => {
+                // 0xBF = array of data items, indefinite length
+                self.writer.write_all(&[0xBF])?;
+                Ok(ComplexEncoder {
+                    encoder: self,
+                    indefinite_length: true,
+                })
+            }
+        }
     }
 
     fn serialize_struct(
@@ -504,18 +542,22 @@ impl<'a, W: Write> SerializeMap for ComplexEncoder<'a, W> {
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        key.serialize(&mut *self.encoder)
     }
 
     fn serialize_value<T>(&mut self, value: &T) -> Result<(), Self::Error>
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        value.serialize(&mut *self.encoder)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        // 0xFF = break byte
+        if self.indefinite_length {
+            self.encoder.writer.write_all(&[0xFF])?;
+        }
+        Ok(())
     }
 }
 
