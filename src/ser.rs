@@ -395,12 +395,14 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
 
     fn serialize_tuple_variant(
         self,
-        name: &'static str,
-        variant_index: u32,
+        _name: &'static str,
+        _variant_index: u32,
         variant: &'static str,
         len: usize,
     ) -> Result<Self::SerializeTupleVariant, Self::Error> {
-        todo!()
+        let mut tuple_encoder = self.serialize_tuple(len + 1)?;
+        SerializeTupleVariant::serialize_field(&mut tuple_encoder, variant)?;
+        Ok(tuple_encoder)
     }
 
     fn serialize_map(self, len: Option<usize>) -> Result<Self::SerializeMap, Self::Error> {
@@ -486,11 +488,11 @@ impl<'a, W: Write> SerializeTupleVariant for ComplexEncoder<'a, W> {
     where
         T: ?Sized + Serialize,
     {
-        todo!()
+        value.serialize(&mut *self.encoder)
     }
 
     fn end(self) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        Ok(())
     }
 }
 
