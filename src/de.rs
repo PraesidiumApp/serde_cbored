@@ -56,7 +56,13 @@ impl<'de, R: Read> Deserializer<'de> for Decoder<R> {
 	fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
 	where
 		V: Visitor<'de> {
-		todo!()
+		let byte = self.read_u8()?;
+        // 0xF5 = true | 0xF4 = false
+		match byte {
+			0xF5 => visitor.visit_bool(true),
+			0xF4 => visitor.visit_bool(false),
+			_ => Err(DecodeError::InvalidType),
+		}
 	}
 
 	fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error>

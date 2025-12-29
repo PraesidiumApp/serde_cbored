@@ -46,6 +46,9 @@ pub enum DecodeError {
     /// from [Decoder](crate::de)'s input
     #[error("Input/Output error")]
     IO(#[from] io::Error),
+    /// The obtained type from deserialization is not the expected one
+    #[error("Invalid type")]
+    InvalidType,
 }
 
 impl ser::Error for EncodeError {
