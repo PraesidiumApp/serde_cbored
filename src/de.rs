@@ -44,7 +44,7 @@ impl<R: Read> Decoder<R> {
     }
 }
 
-impl<'de, R: Read> Deserializer<'de> for Decoder<R> {
+impl<'de, R: Read> Deserializer<'de> for &mut Decoder<R> {
 	type Error = DecodeError;
 
 	fn deserialize_any<V>(self, visitor: V) -> Result<V::Value, Self::Error>
