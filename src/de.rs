@@ -18,6 +18,30 @@ impl<R: Read> Decoder<R> {
 			reader: BufReader::new(source),
 		}
 	}
+
+	fn read_u8(&mut self) -> Result<u8, DecodeError> {
+		let mut u8_buf: [u8; 1] = [0; 1];
+		self.reader.read_exact(&mut u8_buf)?;
+		Ok(u8_buf[0])
+	}
+
+	fn read_u16(&mut self) -> Result<u16, DecodeError> {
+		let mut u16_buf: [u8; 2] = [0; 2];
+		self.reader.read_exact(&mut u16_buf)?;
+		Ok(u16::from_be_bytes(u16_buf))
+	}
+
+	fn read_u32(&mut self) -> Result<u32, DecodeError> {
+		let mut u32_buf: [u8; 4] = [0; 4];
+		self.reader.read_exact(&mut u32_buf)?;
+		Ok(u32::from_be_bytes(u32_buf))
+	}
+
+	fn read_u64(&mut self) -> Result<u64, DecodeError> {
+		let mut u64_buf: [u8; 8] = [0; 8];
+		self.reader.read_exact(&mut u64_buf)?;
+		Ok(u64::from_be_bytes(u64_buf))
+	}
 }
 
 impl<'de, R: Read> Deserializer<'de> for Decoder<R> {
@@ -32,7 +56,7 @@ impl<'de, R: Read> Deserializer<'de> for Decoder<R> {
 	fn deserialize_bool<V>(self, visitor: V) -> Result<V::Value, Self::Error>
 	where
 		V: serde::de::Visitor<'de> {
-		todo!()
+			todo!()
 	}
 
 	fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value, Self::Error>

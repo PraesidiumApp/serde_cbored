@@ -27,7 +27,7 @@ pub enum EncodeError {
     #[error("Error when serializing")]
     Serialization(String),
     /// Represents an Input/Output error while encoding, usually an error when writing to the  
-    /// [Encoder](crate::ser)'s inner writer (the encoder's output)
+    /// [Encoder](crate::ser)'s output)
     #[error("Input/Output error")]
     IO(#[from] io::Error),
     /// The CBOR RFC which this codec is based on does not allow data items with lengths above
@@ -42,6 +42,10 @@ pub enum DecodeError {
     /// Unused variant, needed because of [serde::de::Error] trait contract (read module docs)
     #[error("Error when deserializing")]
     Deserialization(String),
+    /// Represents an Input/Output error while decoding, usually an error when reading
+    /// from [Decoder](crate::de)'s input
+    #[error("Input/Output error")]
+    IO(#[from] io::Error),
 }
 
 impl ser::Error for EncodeError {
