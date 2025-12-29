@@ -1,7 +1,7 @@
 //! A CBOR implementation for the serde framework
 
-pub mod error;
 pub mod de;
+pub mod error;
 pub mod ser;
 
 // Major types constants, used to avoid writing major types everywhere

@@ -1,7 +1,8 @@
 //! The CBOR encoder
 
 use crate::{
-    ARRAY_OF_ITEMS, BYTE_STRING, MAP_OF_ITEMS, NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER, error::EncodeError
+    ARRAY_OF_ITEMS, BYTE_STRING, MAP_OF_ITEMS, NEGATIVE_INTEGER, TEXT_STRING, UNSIGNED_INTEGER,
+    error::EncodeError,
 };
 use serde::ser::{
     Serialize, SerializeMap, SerializeSeq, SerializeStruct, SerializeStructVariant, SerializeTuple,
@@ -9,14 +10,15 @@ use serde::ser::{
 };
 use std::io::{BufWriter, Write};
 
-/// The encoder type, contains an inner writer where the encoded CBOR data will be written
+/// The encoder type
 /// # Considerations
-/// - The inner writer is buffered
-struct Encoder<W: Write> {
+/// - This type is buffered, read [Encoder::flush]
+pub struct Encoder<W: Write> {
     writer: BufWriter<W>,
 }
 
-struct ComplexEncoder<'a, W: Write> {
+/// The complex encoder type
+pub struct ComplexEncoder<'a, W: Write> {
     encoder: &'a mut Encoder<W>,
     indefinite_length: bool,
 }
@@ -37,13 +39,13 @@ impl<W: Write> Encoder<W> {
         }
     }
 
-    /// The [Encoder]'s inner writer is buffered, this means that while you
-    /// might have finished encoding data, this inner buffer could have CBOR data
-    /// pending to be written to its writer, this method tries to flush this buffer,
-    /// ensuring all pending data is written to its writer
+    /// The [Encoder] is buffered, this means that while you might have finished
+    /// encoding data, this inner buffer could have CBOR data pending to be written
+    /// to the output, this method tries to flush this buffer, ensuring all pending
+    /// data is written to its output
     /// # Considerations
     /// When the [Encoder] is dropped, flush() will be called automatically by the
-    /// [std::ops::Drop] trait, but any errors that occur during this process
+    /// [std::ops::Drop] trait, but any errors that might occur during this process
     /// will be ignored, therefore, its highly recommendable to call this method
     pub fn flush(&mut self) -> Result<(), EncodeError> {
         Ok(self.writer.flush()?)
@@ -339,9 +341,7 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
 
     fn serialize_seq(self, len: Option<usize>) -> Result<Self::SerializeSeq, Self::Error> {
         match len {
-            Some(length) => {
-                self.serialize_tuple(length)
-            }
+            Some(length) => self.serialize_tuple(length),
             None => {
                 // 0x9F = array of data items, indefinite length
                 self.writer.write_all(&[0x9F])?;
@@ -362,9 +362,7 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
             ArgumentPlacement::AdditionalInformation => {
                 self.writer.write_all(&[ARRAY_OF_ITEMS | (len as u8)])?
             }
-            ArgumentPlacement::NextByte => {
-                self.writer.write_all(&[0x98, (len as u8)])?
-            }
+            ArgumentPlacement::NextByte => self.writer.write_all(&[0x98, (len as u8)])?,
             ArgumentPlacement::NextTwoBytes => {
                 self.writer.write_all(&[0x99])?;
                 self.writer.write_all(&(len as u16).to_be_bytes())?;
@@ -438,7 +436,7 @@ impl<'a, W: Write> Serializer for &'a mut Encoder<W> {
                     encoder: self,
                     indefinite_length: false,
                 })
-            },
+            }
             None => {
                 // 0xBF = array of data items, indefinite length
                 self.writer.write_all(&[0xBF])?;
