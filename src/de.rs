@@ -9,22 +9,6 @@ pub struct Decoder<R: Read> {
     reader: BufReader<R>,
 }
 
-enum SignedIntegerTarget {
-    AdditionalInformation,
-    Signed8,
-    Signed16,
-    Signed32,
-    Signed64,
-}
-
-enum UnsignedIntegerTarget {
-    AdditionalInformation,
-    Unsigned8,
-    Unsigned16,
-    Unsigned32,
-    Unsigned64,
-}
-
 impl<R: Read> Decoder<R> {
     /// Construct a new decoder, which will read its input from `R`
     pub fn new(source: R) -> Self {
