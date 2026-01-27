@@ -621,6 +621,43 @@ mod tests {
     }
 
     #[test]
+    fn serialize_i16() {
+        let mut buffer = Vec::new();
+        let input_data = [
+            -32768, -300, -129, -128, -25, -24, -1, 0, 1, 10, 23, 24, 42, 127, 128, 255, 256, 300, 32767
+        ];
+        let expected_cbor = Vec::from([
+            0x39, 0x7F, 0xFF, // -32768
+            0x39, 0x01, 0x2B, // -300
+            0x39, 0x00, 0x80, // -129
+            0x39, 0x00, 0x7F, // -128
+            0x39, 0x00, 0x18, // -25
+            0x39, 0x00, 0x17, // -24
+            0x39, 0x00, 0x00, // -1
+            0x19, 0x00, 0x00, // 0
+            0x19, 0x00, 0x01, // 1
+            0x19, 0x00, 0x0A, // 10
+            0x19, 0x00, 0x17, // 23
+            0x19, 0x00, 0x18, // 24
+            0x19, 0x00, 0x2A, // 42
+            0x19, 0x00, 0x7F, // 127
+            0x19, 0x00, 0x80, // 128
+            0x19, 0x00, 0xFF, // 255
+            0x19, 0x01, 0x00, // 256
+            0x19, 0x01, 0x2C, // 300
+            0x19, 0x7F, 0xFF  // 32767
+        ]);
+        {
+            let mut encoder = Encoder::new(&mut buffer);
+            for single_input in input_data {
+                encoder.serialize_i16(single_input).unwrap();
+            }
+            encoder.flush().unwrap();
+        }
+        assert_eq!(buffer, expected_cbor);
+    }
+
+    #[test]
     fn serialize_u8() {
         let mut buffer = Vec::new();
         let input_data: Vec<u8> = Vec::from([0, 1, 10, 23, 24, 42, 127, 255]);
