@@ -109,7 +109,14 @@ impl<'serializer, W: Write> Serializer for &'serializer mut BasicSerializer<W> {
     }
 
     fn serialize_u8(self, v: u8) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        if v < 24 {
+            // We don't OR with 0x00 (unsigned integer major type) since v can't be above 23
+            self.write_u8(v)
+        } else {
+            // 0x18 = unsigned integer in the next byte
+            self.write_u8(0x18)?;
+            self.write_u8(v)
+        }
     }
 
     fn serialize_u16(self, v: u16) -> Result<Self::Ok, Self::Error> {
