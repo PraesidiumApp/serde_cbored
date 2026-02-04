@@ -1,18 +1,24 @@
 //! Error types
 //!
-//! For simplicity and clarity the specific error cases both for encoding and decoding are directly  
-//! declared in its respective enums ([EncodeError] and [DecodeError]) so the [EncodeError::Serialization]  
-//! and [DecodeError::Deserialization] variants, while needed by [serde::ser::Error] and [serde::de::Error]  
+//! For simplicity and clarity the specific error cases both for serializing and deserializing are directly  
+//! declared in its respective enums ([SerializerError] and [DeserializerError]) so the [SerializerError::Serialization]  
+//! and [DeserializerError::Deserialization] variants, while needed by [serde::ser::Error] and [serde::de::Error]  
 //! trait contracts, are left unused
 
 use serde::{de, ser};
 use std::{fmt::Display, io};
 use thiserror::Error;
 
-/// Represents an error while encoding a CBOR data sequence
+#[cfg(feature = "ser")]
+pub(crate) type SerializerResult = Result<(), SerializerError>;
+
+#[cfg(feature = "de")]
+pub(crate) type DeserializerResult = Result<(), DeserializerError>;
+
+/// Represents an error while serializing a CBOR data sequence
 #[cfg(feature = "ser")]
 #[derive(Error, Debug)]
-pub enum EncodeError {
+pub enum SerializerError {
     /// Unused variant, needed because of [serde::ser::Error] trait contract (read module docs)
     #[error("Error when serializing")]
     Serialization(String),
@@ -21,14 +27,14 @@ pub enum EncodeError {
     IO(#[from] io::Error),
     /// The CBOR RFC which this codec is based on does not allow data items with lengths above
     /// 2^64 bytes, this number is absurdly big so it should not be reached
-    #[error("Cannot encode lengths above 2^64 bytes")]
+    #[error("Cannot serialize lengths above 2^64 bytes")]
     LengthOutOfBounds,
 }
 
-/// Represents an error while decoding a CBOR data sequence
+/// Represents an error while deserializing a CBOR data sequence
 #[cfg(feature = "de")]
 #[derive(Error, Debug)]
-pub enum DecodeError {
+pub enum DeserializerError {
     /// Unused variant, needed because of [serde::de::Error] trait contract (read module docs)
     #[error("Error when deserializing")]
     Deserialization(String),
@@ -38,14 +44,14 @@ pub enum DecodeError {
 }
 
 #[cfg(feature = "ser")]
-impl ser::Error for EncodeError {
+impl ser::Error for SerializerError {
     fn custom<T: Display>(msg: T) -> Self {
         Self::Serialization(msg.to_string())
     }
 }
 
 #[cfg(feature = "de")]
-impl de::Error for DecodeError {
+impl de::Error for DeserializerError {
     fn custom<T: Display>(msg: T) -> Self {
         Self::Deserialization(msg.to_string())
     }

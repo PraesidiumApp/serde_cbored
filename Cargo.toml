@@ -2,7 +2,7 @@
 name = "serde_cbored"
 version = "0.1.0-dev"
 edition = "2024"
-description = "A CBOR codec for the serde framework"
+description = "A CBOR backend for the serde framework"
 repository = "https://github.com/PraesidiumApp/serde_cbored"
 license = "BSD-3-Clause"
 keywords = ["cbor", "serde", "codec", "encoding", "format"]
