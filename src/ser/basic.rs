@@ -131,7 +131,14 @@ impl<'serializer, W: Write> Serializer for &'serializer mut BasicSerializer<W> {
     }
 
     fn serialize_u32(self, v: u32) -> Result<Self::Ok, Self::Error> {
-        todo!()
+        if v <= u16::MAX as u32 {
+            // Forward if v fits in u16
+            self.serialize_u16(v as u16)
+        } else {
+            // 0x1A = unsigned integer in the next four bytes
+            self.write_u8(0x1A)?;
+            self.write_u32(v)
+        }
     }
 
     fn serialize_u64(self, v: u64) -> Result<Self::Ok, Self::Error> {

@@ -54,3 +54,37 @@ fn serialize_u16() {
     }
     assert_eq!(expected, output.as_slice())
 }
+
+#[test]
+fn serialize_u32() {
+    let input: &[u32] = &[
+        0, 1, 10, 23, 24, 25, 100, 255,       // Fit in u8
+        256, 1000, 65535,                     // Fit in u16
+        65536, 1000000, 4294967295            // Fit in u32
+    ];
+    let expected: &[u8] = &[
+        0x00,                         // 0
+        0x01,                         // 1
+        0x0A,                         // 10
+        0x17,                         // 23
+        0x18, 0x18,                   // 24
+        0x18, 0x19,                   // 25
+        0x18, 0x64,                   // 100
+        0x18, 0xFF,                   // 255
+        0x19, 0x01, 0x00,             // 256
+        0x19, 0x03, 0xE8,             // 1000
+        0x19, 0xFF, 0xFF,             // 65535
+        0x1A, 0x00, 0x01, 0x00, 0x00, // 65536
+        0x1A, 0x00, 0x0F, 0x42, 0x40, // 1_000_000
+        0x1A, 0xFF, 0xFF, 0xFF, 0xFF  // 4_294_967_295
+    ];
+    let mut output = Vec::new();
+    {
+        let mut serializer = BasicSerializer::new(&mut output);
+        for &value in input {
+            value.serialize(&mut serializer).unwrap();
+        }
+    }
+    assert_eq!(expected, output.as_slice())
+}
+
